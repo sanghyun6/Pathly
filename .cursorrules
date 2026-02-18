@@ -1,0 +1,38 @@
+Project Name: Pathly
+Purpose: Automatic travel route generation web service
+
+[Tech Stack]
+- Next.js (App Router)
+- React
+- TypeScript
+- Tailwind CSS
+- Gemini API (AI route generation)
+- Google Maps API (map display)
+
+[Core Features]
+1. User Input
+   - Destination city
+   - Travel dates (start ~ end)
+   - Budget (budget/moderate/luxury)
+   - Travel style (sightseeing/food/activities/relaxed)
+
+2. AI Route Generation
+   - Generate itinerary via Gemini API
+   - Daily timeline
+   - Time, budget, description for each location
+
+3. Result Display
+   - Left: Daily timeline
+   - Right: Google Maps route
+   - Detail popup on location click
+
+[Folder Structure]
+- /app: Pages
+- /components: Reusable components
+- /lib: API integration, utils
+- /types: TypeScript types
+
+[Design Guidelines]
+- Clean, minimal UI
+- Mobile responsive
+- Fast loading with smooth animations
