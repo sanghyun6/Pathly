@@ -43,7 +43,7 @@ function locationId(dayIndex: number, locIndex: number): LocationId {
   return `${dayIndex}-${locIndex}`;
 }
 
-const PIN_COLORS = ["#059669", "#2563eb", "#d97706", "#7c3aed", "#dc2626"];
+const PIN_COLORS = ["#10B981", "#3B82F6", "#8B5CF6", "#F59E0B", "#EC4899"];
 
 function getPinColor(dayIndex: number): string {
   return PIN_COLORS[dayIndex % PIN_COLORS.length];
@@ -160,6 +160,12 @@ function MapContent({
   ignoreNextMapClickRef: React.MutableRefObject<boolean>;
 }) {
   const map = useMap();
+  const [mapType, setMapType] = useState<"roadmap" | "hybrid">("roadmap");
+
+  useEffect(() => {
+    if (!map) return;
+    map.setMapTypeId(mapType === "hybrid" ? google.maps.MapTypeId.HYBRID : google.maps.MapTypeId.ROADMAP);
+  }, [map, mapType]);
 
   // Hover tooltip: show only if (hoveredMarkerId === markerId AND selectedMarkerId !== markerId)
   const tooltipPoint = useMemo(() => {
@@ -213,6 +219,31 @@ function MapContent({
 
   return (
     <>
+      {/* Custom Map/Satellite toggle - matches app design */}
+      <div className="absolute left-4 top-4 z-10 flex rounded-xl bg-white/95 shadow-lg shadow-slate-200/60 ring-1 ring-slate-200/80 backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={() => setMapType("roadmap")}
+          className={`rounded-l-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+            mapType === "roadmap"
+              ? "bg-emerald-500 text-white shadow-inner"
+              : "bg-slate-50/80 text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+          }`}
+        >
+          Map
+        </button>
+        <button
+          type="button"
+          onClick={() => setMapType("hybrid")}
+          className={`rounded-r-xl border-l border-slate-200/80 px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+            mapType === "hybrid"
+              ? "bg-emerald-500 text-white shadow-inner"
+              : "bg-slate-50/80 text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+          }`}
+        >
+          Satellite
+        </button>
+      </div>
       {points.map(({ location, locationId: id, dayIndex }) => (
         <AdvancedMarker
           key={id}
@@ -243,29 +274,29 @@ function MapContent({
                 e.stopPropagation();
                 onCloseInfoWindow();
               }}
-              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600"
               aria-label="Close"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
               Day {activePoint.dayIndex + 1}
             </p>
-            <p className="mt-1 font-semibold text-slate-900 dark:text-white">
+            <p className="mt-1 font-semibold text-slate-900">
               {activePoint.location.name}
             </p>
-            <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400">
+            <p className="mt-1.5 text-xs text-slate-600">
               <span className="font-medium">Time:</span> {formatTime(activePoint.location.time)}
             </p>
-            <p className="text-xs text-slate-600 dark:text-slate-400">
+            <p className="text-xs text-slate-600">
               <span className="font-medium">Duration:</span> {activePoint.location.duration}
             </p>
-            <p className="mt-1.5 line-clamp-3 text-sm text-slate-600 dark:text-slate-400">
+            <p className="mt-1.5 line-clamp-3 text-sm text-slate-600">
               {activePoint.location.description}
             </p>
-            <p className="mt-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+            <p className="mt-1.5 text-xs font-medium text-slate-700">
               <span className="font-medium">Cost:</span> {formatCostDisplay(activePoint.location.estimatedCost)}
             </p>
           </div>
@@ -305,10 +336,31 @@ export function MapView({
   }, []);
   const handleCloseInfoWindow = useCallback(() => setSelectedMarkerId(null), []);
 
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const el = mapWrapperRef.current;
+    if (!el) return;
+    const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = mapWrapperRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      el.requestFullscreen();
+    }
+  }, []);
+
   if (!apiKey?.trim()) {
     return (
-      <div className="flex h-full min-h-[280px] items-center justify-center rounded-lg border border-slate-200 bg-slate-100/50 dark:border-slate-700 dark:bg-slate-800/50">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+      <div className="flex h-full min-h-[280px] items-center justify-center rounded-xl border border-slate-200 bg-slate-100/60">
+        <p className="text-sm text-slate-500">
           Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to show the map
         </p>
       </div>
@@ -317,15 +369,21 @@ export function MapView({
 
   return (
     <APIProvider apiKey={apiKey}>
-      <Map
-        mapId={effectiveMapId}
-        defaultCenter={center}
-        defaultZoom={12}
-        gestureHandling="greedy"
-        disableDefaultUI={false}
-        className="h-full min-h-[280px] w-full rounded-lg"
-      >
-        <MapContent
+      <div ref={mapWrapperRef} className="relative h-full min-h-[280px] w-full">
+        <Map
+          mapId={effectiveMapId}
+          defaultCenter={center}
+          defaultZoom={12}
+          gestureHandling="greedy"
+          streetViewControl={false}
+          mapTypeControl={false}
+          scaleControl={false}
+          rotateControl={false}
+          zoomControl={false}
+          fullscreenControl={false}
+          className="h-full min-h-[280px] w-full rounded-lg"
+        >
+          <MapContent
           points={points}
           path={path}
           selectedLocationId={selectedLocationId}
@@ -338,7 +396,25 @@ export function MapView({
           onCloseInfoWindow={handleCloseInfoWindow}
           ignoreNextMapClickRef={ignoreNextMapClickRef}
         />
-      </Map>
+        </Map>
+        {/* Custom fullscreen button - matches Map/Satellite toggle design */}
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-xl bg-white/95 shadow-lg shadow-slate-200/60 ring-1 ring-slate-200/80 backdrop-blur-sm transition-all duration-200 hover:bg-emerald-50 hover:ring-emerald-200 hover:shadow-emerald-200/30 active:bg-emerald-100"
+        >
+          {isFullscreen ? (
+            <svg className="h-5 w-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4m0 0h5M9 4L4 9m14-5v5m0-5h-5m5 0l-5-5m5 14l-5-5m5 5v-5m0 5h-5m5 0l5-5" />
+            </svg>
+          ) : (
+            <svg className="h-5 w-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          )}
+        </button>
+      </div>
     </APIProvider>
   );
 }

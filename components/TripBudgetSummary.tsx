@@ -20,7 +20,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
-      className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 dark:text-slate-400 ${open ? "rotate-180" : ""}`}
+      className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -40,20 +40,20 @@ export function TripBudgetSummary({ itinerary, className = "" }: TripBudgetSumma
 
   return (
     <section
-      className={`rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 ${className}`}
+      className={`rounded-xl bg-slate-100/80 shadow-sm ${className}`}
       aria-label="Trip budget summary"
     >
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="flex w-full items-center justify-between gap-2 py-2 pr-2 pl-3 text-left sm:pl-3"
+        className="flex w-full items-center justify-between gap-2 py-2.5 pr-2 pl-3 text-left sm:pl-4"
         aria-expanded={expanded}
         aria-controls="trip-cost-breakdown"
       >
-        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+        <span className="text-sm font-medium text-slate-600">
           Trip cost
         </span>
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/60 hover:text-slate-700">
           <ChevronIcon open={expanded} />
         </span>
       </button>
@@ -64,11 +64,11 @@ export function TripBudgetSummary({ itinerary, className = "" }: TripBudgetSumma
         aria-hidden={!expanded}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="border-t border-slate-200 px-3 pb-3 pt-2 dark:border-slate-700 sm:px-4 sm:pb-4 sm:pt-3">
-            <p className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
+          <div className="border-t border-slate-200/80 px-3 pb-3 pt-2 sm:px-4 sm:pb-4 sm:pt-3">
+            <p className="text-xl font-bold text-slate-900 sm:text-2xl">
               {total > 0 ? formatCurrency(total) : "—"}
             </p>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-0.5 text-xs text-slate-500">
               Total for {itinerary.days.length} day{itinerary.days.length === 1 ? "" : "s"}
             </p>
             {hasBreakdown && (
@@ -78,10 +78,10 @@ export function TripBudgetSummary({ itinerary, className = "" }: TripBudgetSumma
                   if (value <= 0) return null;
                   return (
                     <div key={key} className="flex justify-between text-sm">
-                      <dt className="text-slate-600 dark:text-slate-400">
+                      <dt className="text-slate-600">
                         {CATEGORY_LABELS[key] ?? key}
                       </dt>
-                      <dd className="font-medium text-slate-900 dark:text-white">
+                      <dd className="font-medium text-slate-900">
                         {formatCurrency(value)}
                       </dd>
                     </div>

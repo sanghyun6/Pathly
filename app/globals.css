@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #F8F9FA;
   --foreground: #171717;
 }
 
@@ -12,17 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -57,4 +50,93 @@ body {
   50% {
     transform: translateY(-6px);
   }
+}
+
+/* React Datepicker - Pathly theme (modern, clean) */
+.pathly-datepicker.react-datepicker {
+  font-family: inherit;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 12px 48px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+.pathly-datepicker .react-datepicker__header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 12px 12px;
+}
+.pathly-datepicker .react-datepicker__current-month {
+  color: #1e293b;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+.pathly-datepicker .react-datepicker__day-names {
+  margin-top: 8px;
+}
+.pathly-datepicker .react-datepicker__day-name {
+  color: #64748b;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  width: 2.25rem;
+  margin: 0.25rem;
+}
+.pathly-datepicker .react-datepicker__month {
+  margin: 12px 8px 14px;
+}
+.pathly-datepicker .react-datepicker__day {
+  width: 2.25rem;
+  height: 2.25rem;
+  line-height: 2.25rem;
+  margin: 0.25rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.pathly-datepicker .react-datepicker__day:hover:not(.react-datepicker__day--selected):not(.react-datepicker__day--keyboard-selected):not(.react-datepicker__day--disabled) {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+.pathly-datepicker .react-datepicker__day--selected,
+.pathly-datepicker .react-datepicker__day--keyboard-selected {
+  background: #10b981 !important;
+  color: #fff !important;
+  font-weight: 600;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.35);
+}
+.pathly-datepicker .react-datepicker__day--today:not(.react-datepicker__day--selected):not(.react-datepicker__day--keyboard-selected) {
+  border: 2px solid #10b981;
+  color: #047857;
+  font-weight: 600;
+}
+.pathly-datepicker .react-datepicker__day--disabled {
+  color: #cbd5e1 !important;
+  cursor: not-allowed;
+}
+.pathly-datepicker .react-datepicker__day--outside-month {
+  color: #94a3b8;
+}
+.pathly-datepicker .react-datepicker__day--in-range {
+  background: #a7f3d0;
+  color: #065f46;
+}
+.pathly-datepicker .react-datepicker__day--in-selecting-range {
+  background: #d1fae5;
+}
+.pathly-datepicker .react-datepicker__navigation {
+  top: 14px;
+}
+.pathly-datepicker .react-datepicker__navigation-icon::before {
+  border-color: #64748b;
+  border-width: 2px 2px 0 0;
+  top: 12px;
+}
+.pathly-datepicker .react-datepicker__month-container {
+  padding: 0;
 }

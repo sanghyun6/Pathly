@@ -46,6 +46,22 @@ export function locationId(dayIndex: number, locIndex: number): LocationId {
   return `${dayIndex}-${locIndex}`;
 }
 
+const DAY_COLORS = ["#10B981", "#3B82F6", "#8B5CF6", "#F59E0B", "#EC4899"] as const;
+
+function getDayColor(dayIndex: number): string {
+  return DAY_COLORS[dayIndex % DAY_COLORS.length];
+}
+
+function getLocationIcon(category?: string): string {
+  switch (category) {
+    case "food": return "🍴";
+    case "attraction": return "🏛️";
+    case "activity": return "🎯";
+    case "transport": return "🚌";
+    default: return "📍";
+  }
+}
+
 export function Timeline({
   itinerary,
   selectedLocationId,
@@ -158,18 +174,23 @@ function DaySection({
 
   const sortableIds = day.locations.map((_, i) => String(i));
 
+  const dayColor = getDayColor(dayIndex);
+
   return (
-    <li className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <li
+      className="rounded-xl bg-white shadow-md shadow-slate-200/50 transition-all duration-200 hover:shadow-lg"
+      style={{ borderLeft: `4px solid ${dayColor}` }}
+    >
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 sm:px-5"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50/80 sm:px-5"
         aria-expanded={isExpanded}
       >
-        <span className="font-semibold text-slate-900 dark:text-white">
+        <span className="font-semibold text-slate-900">
           Day {dayIndex + 1}
         </span>
-        <span className="text-sm text-slate-500 dark:text-slate-400">{dateLabel}</span>
+        <span className="text-sm text-slate-500">{dateLabel}</span>
         <span
           className={`shrink-0 transition-transform duration-200 ease-out ${isExpanded ? "rotate-180" : ""}`}
           aria-hidden
@@ -184,11 +205,11 @@ function DaySection({
         style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="border-t border-slate-200 px-4 pb-4 pt-2 dark:border-slate-700 sm:px-5">
+          <div className="border-t border-slate-100 px-4 pb-4 pt-2 sm:px-5">
             {editable && onItineraryChange ? (
               <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd} sensors={sensors}>
                 <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-                  <ul className="space-y-3">
+                  <ul className="space-y-2">
                     {day.locations.map((loc, locIndex) => (
                       <SortableLocationCard
                         key={locIndex}
@@ -198,13 +219,14 @@ function DaySection({
                         onSelect={() => onSelectLocation(locationId(dayIndex, locIndex), loc)}
                         onRemove={() => handleRemove(locIndex)}
                         sortableId={String(locIndex)}
+                        dayColor={dayColor}
                       />
                     ))}
                   </ul>
                 </SortableContext>
               </DndContext>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-2">
                 {day.locations.map((loc, locIndex) => (
                   <LocationCard
                     key={locIndex}
@@ -212,13 +234,14 @@ function DaySection({
                     locationId={locationId(dayIndex, locIndex)}
                     isSelected={selectedLocationId === locationId(dayIndex, locIndex)}
                     onSelect={() => onSelectLocation(locationId(dayIndex, locIndex), loc)}
+                    dayColor={dayColor}
                   />
                 ))}
               </ul>
             )}
-            <div className="mt-4 rounded-lg bg-slate-100 px-3 py-2 text-sm dark:bg-slate-800">
-              <span className="text-slate-600 dark:text-slate-400">Estimated day total: </span>
-              <span className="font-medium text-slate-900 dark:text-white">
+            <div className="mt-3 rounded-lg bg-slate-100/80 px-3 py-2 text-sm">
+              <span className="text-slate-600">Estimated day total: </span>
+              <span className="font-medium text-slate-900">
                 {dailyTotalFormatted}
               </span>
             </div>
@@ -236,6 +259,7 @@ interface SortableLocationCardProps {
   onSelect: () => void;
   onRemove: () => void;
   sortableId: string;
+  dayColor: string;
 }
 
 function SortableLocationCard({
@@ -245,6 +269,7 @@ function SortableLocationCard({
   onSelect,
   onRemove,
   sortableId,
+  dayColor,
 }: SortableLocationCardProps) {
   const {
     attributes,
@@ -266,7 +291,7 @@ function SortableLocationCard({
         {attributes && listeners && (
           <button
             type="button"
-            className="flex shrink-0 touch-none cursor-grab active:cursor-grabbing items-center rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+            className="flex shrink-0 touch-none cursor-grab active:cursor-grabbing items-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             aria-label="Drag to reorder"
             {...attributes}
             {...listeners}
@@ -281,27 +306,28 @@ function SortableLocationCard({
             type="button"
             onClick={onSelect}
             data-location-id={locationId}
-            className={`w-full rounded-lg border px-3 py-3 text-left transition-all duration-200 sm:px-4 sm:py-3.5 ${
+            className={`w-full rounded-xl border px-3 py-3 text-left transition-all duration-200 hover:shadow-md sm:px-4 sm:py-3.5 ${
               isSelected
-                ? "border-emerald-500 bg-emerald-50 shadow-sm dark:border-emerald-500 dark:bg-emerald-950/40"
-                : "border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-slate-600 dark:hover:bg-slate-800"
+                ? "border-emerald-400 bg-emerald-50/80 shadow-md"
+                : "border-slate-200 bg-slate-50/60 hover:border-slate-300 hover:bg-white hover:shadow"
             }`}
           >
             <div className="flex flex-wrap items-baseline gap-2">
-              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="text-sm font-semibold" style={{ color: dayColor }}>
                 {location.time}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="text-xs text-slate-500">
                 {location.duration}
               </span>
             </div>
-            <h3 className="mt-1 font-medium text-slate-900 dark:text-white">
+            <h3 className="mt-1 flex items-center gap-2 font-medium text-slate-900">
+              <span className="text-base leading-none" aria-hidden>{getLocationIcon(location.category)}</span>
               {location.name}
             </h3>
-            <p className="mt-1.5 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+            <p className="mt-1.5 line-clamp-2 text-sm text-slate-600">
               {location.description}
             </p>
-            <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <p className="mt-2 text-xs font-medium text-slate-500">
               {formatCostDisplay(location.estimatedCost)}
             </p>
           </button>
@@ -312,7 +338,7 @@ function SortableLocationCard({
             e.stopPropagation();
             onRemove();
           }}
-          className="flex shrink-0 items-center rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+          className="flex shrink-0 items-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
           aria-label="Remove location"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -329,36 +355,38 @@ interface LocationCardProps {
   locationId: LocationId;
   isSelected: boolean;
   onSelect: () => void;
+  dayColor: string;
 }
 
-function LocationCard({ location, locationId, isSelected, onSelect }: LocationCardProps) {
+function LocationCard({ location, locationId, isSelected, onSelect, dayColor }: LocationCardProps) {
   return (
     <li>
       <button
         type="button"
         onClick={onSelect}
         data-location-id={locationId}
-        className={`w-full rounded-lg border px-3 py-3 text-left transition-all duration-200 sm:px-4 sm:py-3.5 ${
+        className={`w-full rounded-xl border px-3 py-3 text-left transition-all duration-200 hover:shadow-md sm:px-4 sm:py-3.5 ${
           isSelected
-            ? "border-emerald-500 bg-emerald-50 shadow-sm dark:border-emerald-500 dark:bg-emerald-950/40"
-            : "border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-slate-600 dark:hover:bg-slate-800"
+            ? "border-emerald-400 bg-emerald-50/80 shadow-md"
+            : "border-slate-200 bg-slate-50/60 hover:border-slate-300 hover:bg-white hover:shadow"
         }`}
       >
         <div className="flex flex-wrap items-baseline gap-2">
-          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+          <span className="text-sm font-semibold" style={{ color: dayColor }}>
             {location.time}
           </span>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="text-xs text-slate-500">
             {location.duration}
           </span>
         </div>
-        <h3 className="mt-1 font-medium text-slate-900 dark:text-white">
+        <h3 className="mt-1 flex items-center gap-2 font-medium text-slate-900">
+          <span className="text-base leading-none" aria-hidden>{getLocationIcon(location.category)}</span>
           {location.name}
         </h3>
-        <p className="mt-1.5 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+        <p className="mt-1.5 line-clamp-2 text-sm text-slate-600">
           {location.description}
         </p>
-        <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <p className="mt-2 text-xs font-medium text-slate-500">
           {formatCostDisplay(location.estimatedCost)}
         </p>
       </button>
