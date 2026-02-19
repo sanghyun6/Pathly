@@ -40,6 +40,12 @@ export interface TimelineProps {
   /** When true, show remove buttons and allow drag-and-drop reorder */
   editable?: boolean;
   onItineraryChange?: (days: ItineraryDay[]) => void;
+  /** Controlled: which days are expanded (multiple allowed). Map shows locations from all expanded days. */
+  expandedDayIndices?: number[];
+  /** Called when user expands/collapses a day. Use with expandedDayIndices for map filtering. */
+  onExpandedDayIndicesChange?: (indices: number[]) => void;
+  /** Called when user expands a day (not on collapse). Use to zoom map to the newly expanded day. */
+  onDayExpanded?: (dayIndex: number) => void;
 }
 
 export function locationId(dayIndex: number, locIndex: number): LocationId {
@@ -68,19 +74,29 @@ export function Timeline({
   onSelectLocation,
   editable = false,
   onItineraryChange,
+  expandedDayIndices: controlledIndices,
+  onExpandedDayIndicesChange,
+  onDayExpanded,
 }: TimelineProps) {
-  const [expandedDays, setExpandedDays] = useState<Set<number>>(() =>
-    new Set(itinerary.days.length > 0 ? [0] : [])
+  const [internalIndices, setInternalIndices] = useState<number[]>(() =>
+    itinerary.days.length > 0 ? [0] : []
   );
+  const expandedDayIndices = controlledIndices ?? internalIndices;
+  const setExpandedDayIndices = onExpandedDayIndicesChange ?? setInternalIndices;
 
-  const toggleDay = useCallback((dayIndex: number) => {
-    setExpandedDays((prev) => {
-      const next = new Set(prev);
-      if (next.has(dayIndex)) next.delete(dayIndex);
-      else next.add(dayIndex);
-      return next;
-    });
-  }, []);
+  const toggleDay = useCallback(
+    (dayIndex: number) => {
+      const next = new Set(expandedDayIndices);
+      const wasExpanded = next.has(dayIndex);
+      if (wasExpanded) next.delete(dayIndex);
+      else {
+        next.add(dayIndex);
+        onDayExpanded?.(dayIndex);
+      }
+      setExpandedDayIndices([...next].sort((a, b) => a - b));
+    },
+    [expandedDayIndices, setExpandedDayIndices, onDayExpanded]
+  );
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -92,7 +108,7 @@ export function Timeline({
               itinerary={itinerary}
               day={day}
               dayIndex={dayIndex}
-              isExpanded={expandedDays.has(dayIndex)}
+              isExpanded={expandedDayIndices.includes(dayIndex)}
               onToggle={() => toggleDay(dayIndex)}
               selectedLocationId={selectedLocationId}
               onSelectLocation={onSelectLocation}
@@ -134,7 +150,6 @@ function DaySection({
     weekday: "short",
     month: "short",
     day: "numeric",
-    year: "numeric",
   });
 
   const sensors = useSensors(
@@ -176,10 +191,13 @@ function DaySection({
 
   const dayColor = getDayColor(dayIndex);
 
+  const locationCount = day.locations.length;
+  const summaryLine = `${locationCount} location${locationCount === 1 ? "" : "s"} • ${dailyTotalFormatted}`;
+
   return (
     <li
-      className="rounded-xl bg-white shadow-md shadow-slate-200/50 transition-all duration-200 hover:shadow-lg"
-      style={{ borderLeft: `4px solid ${dayColor}` }}
+      className="origin-left rounded-xl bg-white shadow-md shadow-slate-200/50 transition-transform duration-300 ease-in-out hover:scale-[1.02]"
+      style={{ borderLeft: `2px solid ${dayColor}` }}
     >
       <button
         type="button"
@@ -192,7 +210,7 @@ function DaySection({
         </span>
         <span className="text-sm text-slate-500">{dateLabel}</span>
         <span
-          className={`shrink-0 transition-transform duration-200 ease-out ${isExpanded ? "rotate-180" : ""}`}
+          className={`shrink-0 transition-transform duration-300 ease-in-out ${isExpanded ? "rotate-180" : ""}`}
           aria-hidden
         >
           <svg className="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -201,11 +219,16 @@ function DaySection({
         </span>
       </button>
       <div
-        className="grid transition-[grid-template-rows] duration-200 ease-out"
+        className="grid transition-[grid-template-rows] duration-300 ease-in-out"
         style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="border-t border-slate-100 px-4 pb-4 pt-2 sm:px-5">
+          <div
+            className={`border-t border-slate-100 px-4 pb-4 pt-2 transition-opacity duration-300 ease-in-out sm:px-5 ${isExpanded ? "opacity-100" : "opacity-0"}`}
+          >
+            <p className="mb-3 text-sm font-medium text-slate-600">
+              {summaryLine}
+            </p>
             {editable && onItineraryChange ? (
               <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd} sensors={sensors}>
                 <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
@@ -239,12 +262,6 @@ function DaySection({
                 ))}
               </ul>
             )}
-            <div className="mt-3 rounded-lg bg-slate-100/80 px-3 py-2 text-sm">
-              <span className="text-slate-600">Estimated day total: </span>
-              <span className="font-medium text-slate-900">
-                {dailyTotalFormatted}
-              </span>
-            </div>
           </div>
         </div>
       </div>

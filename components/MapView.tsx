@@ -37,6 +37,10 @@ export interface MapViewProps {
   onSelectLocation: (locationId: LocationId | null, location: ItineraryLocation | null) => void;
   apiKey: string;
   mapId?: string;
+  /** When non-empty, show only locations from these days; when empty, show all. Enables multi-day expansion. */
+  expandedDayIndices?: number[];
+  /** When set, map zooms to this day's locations only (e.g. the newly expanded day). Other markers stay visible. */
+  focusedDayIndex?: number | null;
 }
 
 function locationId(dayIndex: number, locIndex: number): LocationId {
@@ -136,6 +140,8 @@ function useHoverTooltipOverlay(
 function MapContent({
   points,
   path,
+  expandedDayIndices,
+  focusedDayIndex,
   selectedLocationId,
   onSelectLocation,
   hoveredMarkerId,
@@ -148,6 +154,8 @@ function MapContent({
 }: {
   points: Array<{ location: ItineraryLocation; locationId: LocationId; dayIndex: number }>;
   path: google.maps.LatLngLiteral[];
+  expandedDayIndices: number[];
+  focusedDayIndex: number | null;
   selectedLocationId: LocationId | null;
   onSelectLocation: (locationId: LocationId | null, location: ItineraryLocation | null) => void;
   hoveredMarkerId: LocationId | null;
@@ -205,12 +213,26 @@ function MapContent({
     return () => polyline.setMap(null);
   }, [map, path]);
 
+  // Zoom to focused day when one is set (newly expanded); otherwise fit all visible. Other markers stay visible.
+  const pathToFit = useMemo(() => {
+    if (focusedDayIndex != null) {
+      const dayPath = points.filter((p) => p.dayIndex === focusedDayIndex).map((p) => p.location.coordinates);
+      return dayPath.length > 0 ? dayPath : path;
+    }
+    return path;
+  }, [focusedDayIndex, points, path]);
+
   useEffect(() => {
-    if (!map || path.length === 0) return;
-    const bounds = new google.maps.LatLngBounds();
-    path.forEach((p) => bounds.extend(p));
-    map.fitBounds(bounds, { top: 48, right: 48, bottom: 48, left: 48 });
-  }, [map, path]);
+    if (!map || pathToFit.length === 0) return;
+    const padding = { top: 48, right: 48, bottom: 48, left: 48 };
+    const runFitBounds = () => {
+      const bounds = new google.maps.LatLngBounds();
+      pathToFit.forEach((p) => bounds.extend(p));
+      map.fitBounds(bounds, padding);
+    };
+    const t = window.setTimeout(runFitBounds, 80);
+    return () => window.clearTimeout(t);
+  }, [map, pathToFit, focusedDayIndex]);
 
   const activePoint = useMemo(
     () => points.find((p) => p.locationId === selectedMarkerId),
@@ -314,13 +336,20 @@ export function MapView({
   onSelectLocation,
   apiKey,
   mapId,
+  expandedDayIndices = [],
+  focusedDayIndex = null,
 }: MapViewProps) {
   const effectiveMapId = mapId?.trim() || DEFAULT_MAP_ID;
   const [hoveredMarkerId, setHoveredMarkerId] = useState<LocationId | null>(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState<LocationId | null>(null);
   const ignoreNextMapClickRef = useRef(false);
 
-  const points = useMemo(() => flattenLocations(itinerary), [itinerary]);
+  const points = useMemo(() => {
+    const all = flattenLocations(itinerary);
+    if (expandedDayIndices.length === 0) return all;
+    const set = new Set(expandedDayIndices);
+    return all.filter((p) => set.has(p.dayIndex));
+  }, [itinerary, expandedDayIndices]);
   const path = useMemo(() => points.map((p) => p.location.coordinates), [points]);
   const center = useMemo(() => {
     if (path.length === 0) return { lat: 0, lng: 0 };
@@ -386,6 +415,8 @@ export function MapView({
           <MapContent
           points={points}
           path={path}
+          expandedDayIndices={expandedDayIndices}
+          focusedDayIndex={focusedDayIndex}
           selectedLocationId={selectedLocationId}
           onSelectLocation={onSelectLocation}
           hoveredMarkerId={hoveredMarkerId}

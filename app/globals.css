@@ -30,6 +30,27 @@ body {
   }
 }
 
+/* Pathly custom scrollbar: thin, light track, emerald thumb */
+.scrollbar-pathly {
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #e2e8f0;
+}
+.scrollbar-pathly::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-pathly::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.scrollbar-pathly::-webkit-scrollbar-thumb {
+  background: #10b981;
+  border-radius: 4px;
+}
+.scrollbar-pathly::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
 @keyframes generating-pulse {
   0%,
   100% {

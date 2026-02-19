@@ -20,7 +20,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
-      className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+      className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-300 ease-in-out ${open ? "rotate-180" : ""}`}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -59,12 +59,14 @@ export function TripBudgetSummary({ itinerary, className = "" }: TripBudgetSumma
       </button>
       <div
         id="trip-cost-breakdown"
-        className="grid transition-[grid-template-rows] duration-200 ease-out"
+        className="grid transition-[grid-template-rows] duration-300 ease-in-out"
         style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
         aria-hidden={!expanded}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="border-t border-slate-200/80 px-3 pb-3 pt-2 sm:px-4 sm:pb-4 sm:pt-3">
+          <div
+            className={`border-t border-slate-200/80 px-3 pb-3 pt-2 transition-opacity duration-300 ease-in-out sm:px-4 sm:pb-4 sm:pt-3 ${expanded ? "opacity-100" : "opacity-0"}`}
+          >
             <p className="text-xl font-bold text-slate-900 sm:text-2xl">
               {total > 0 ? formatCurrency(total) : "—"}
             </p>

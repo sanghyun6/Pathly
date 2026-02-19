@@ -22,6 +22,8 @@ export default function ResultsPage() {
   const [selectedLocationId, setSelectedLocationId] = useState<LocationId | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<ItineraryLocation | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [expandedDayIndices, setExpandedDayIndices] = useState<number[]>(() => [0]);
+  const [focusedDayIndex, setFocusedDayIndex] = useState<number | null>(0);
 
   useEffect(() => {
     setMounted(true);
@@ -92,16 +94,19 @@ export default function ResultsPage() {
           </p>
         </header>
         <div
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-5"
+          className="scrollbar-pathly min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-5"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <TripBudgetSummary itinerary={data} className="mb-4" />
+          <TripBudgetSummary itinerary={data} className="mt-6 mb-4" />
           <Timeline
             itinerary={data}
             selectedLocationId={selectedLocationId}
             onSelectLocation={handleSelectLocation}
             editable
             onItineraryChange={handleItineraryChange}
+            expandedDayIndices={expandedDayIndices}
+            onExpandedDayIndicesChange={setExpandedDayIndices}
+            onDayExpanded={setFocusedDayIndex}
           />
         </div>
       </aside>
@@ -114,6 +119,8 @@ export default function ResultsPage() {
             onSelectLocation={handleSelectLocation}
             apiKey={mapsApiKey}
             mapId={mapsMapId}
+            expandedDayIndices={expandedDayIndices}
+            focusedDayIndex={focusedDayIndex}
           />
         </div>
       </main>
