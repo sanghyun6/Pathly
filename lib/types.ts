@@ -13,6 +13,9 @@ export interface Coordinates {
   lng: number;
 }
 
+/** Category for budget breakdown */
+export type LocationCategory = "food" | "attraction" | "activity" | "transport";
+
 /** A single location in a day's itinerary */
 export interface ItineraryLocation {
   name: string;
@@ -21,6 +24,8 @@ export interface ItineraryLocation {
   description: string;
   estimatedCost: string;
   coordinates: Coordinates;
+  /** Optional: for cost breakdown by category */
+  category?: LocationCategory;
 }
 
 /** One day of the itinerary */

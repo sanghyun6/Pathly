@@ -2,6 +2,13 @@
 
 import { useEffect } from "react";
 import type { ItineraryLocation } from "@/lib/types";
+import { parseCostToNumber, formatCurrency } from "@/lib/budget";
+
+function formatCostDisplay(estimatedCost: string): string {
+  const n = parseCostToNumber(estimatedCost);
+  if (n !== null) return formatCurrency(n);
+  return estimatedCost || "—";
+}
 
 export interface LocationDetailProps {
   location: ItineraryLocation | null;
@@ -68,7 +75,7 @@ export function LocationDetail({ location, onClose, open }: LocationDetailProps)
                   </p>
                   <p className="mt-1 text-slate-600 dark:text-slate-400">{location.description}</p>
                   <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    {location.estimatedCost}
+                    {formatCostDisplay(location.estimatedCost)}
                   </p>
                 </div>
                 <div>
@@ -76,7 +83,7 @@ export function LocationDetail({ location, onClose, open }: LocationDetailProps)
                     Map
                   </h3>
                   <a
-                    href={`https://www.google.com/maps?q=${location.coordinates.lat},${location.coordinates.lng}`}
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.name)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-1 inline-flex items-center gap-1 text-sm text-emerald-600 hover:underline dark:text-emerald-400"

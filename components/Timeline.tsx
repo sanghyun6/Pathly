@@ -18,32 +18,19 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { GenerateRouteResponse, ItineraryDay, ItineraryLocation } from "@/lib/types";
+import { formatCurrency, sumLocationCosts, parseCostToNumber } from "@/lib/budget";
 
 export type LocationId = string;
 
-function parseCostToNumber(cost: string): number | null {
-  const cleaned = cost.replace(/[^\d.]/g, "");
-  if (!cleaned) return null;
-  const n = parseFloat(cleaned);
-  return Number.isFinite(n) ? n : null;
+function formatDayTotal(locations: ItineraryLocation[]): string {
+  const total = sumLocationCosts(locations);
+  return total > 0 ? formatCurrency(total) : "—";
 }
 
-function formatDailyTotal(sum: number | null): string {
-  if (sum === null) return "—";
-  return `$${sum.toFixed(0)}`;
-}
-
-function sumDayCosts(locations: ItineraryLocation[]): number | null {
-  let total = 0;
-  let anyParsed = false;
-  for (const loc of locations) {
-    const n = parseCostToNumber(loc.estimatedCost);
-    if (n !== null) {
-      total += n;
-      anyParsed = true;
-    }
-  }
-  return anyParsed ? total : null;
+function formatCostDisplay(estimatedCost: string): string {
+  const n = parseCostToNumber(estimatedCost);
+  if (n !== null) return formatCurrency(n);
+  return estimatedCost || "—";
 }
 
 export interface TimelineProps {
@@ -126,7 +113,7 @@ function DaySection({
   editable,
   onItineraryChange,
 }: DaySectionProps) {
-  const dailyTotal = sumDayCosts(day.locations);
+  const dailyTotalFormatted = formatDayTotal(day.locations);
   const dateLabel = new Date(day.date).toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
@@ -232,7 +219,7 @@ function DaySection({
             <div className="mt-4 rounded-lg bg-slate-100 px-3 py-2 text-sm dark:bg-slate-800">
               <span className="text-slate-600 dark:text-slate-400">Estimated day total: </span>
               <span className="font-medium text-slate-900 dark:text-white">
-                {formatDailyTotal(dailyTotal)}
+                {dailyTotalFormatted}
               </span>
             </div>
           </div>
@@ -315,7 +302,7 @@ function SortableLocationCard({
               {location.description}
             </p>
             <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-              {location.estimatedCost}
+              {formatCostDisplay(location.estimatedCost)}
             </p>
           </button>
         </div>
@@ -372,7 +359,7 @@ function LocationCard({ location, locationId, isSelected, onSelect }: LocationCa
           {location.description}
         </p>
         <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-          {location.estimatedCost}
+          {formatCostDisplay(location.estimatedCost)}
         </p>
       </button>
     </li>

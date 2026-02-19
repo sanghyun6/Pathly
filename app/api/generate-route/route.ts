@@ -20,9 +20,19 @@ function getNumberOfDays(startDate: string, endDate: string): number {
   return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1);
 }
 
+const BUDGET_COST_RULES: Record<string, string> = {
+  budget:
+    "Budget: each location estimatedCost must be a NUMBER in USD between 0 and 30. Use 0 for free entries. Meals/street food ~5-15, attractions ~0-15, activities ~10-25, transport ~2-10. Adjust for destination (e.g. Tokyo slightly higher, Bangkok lower).",
+  moderate:
+    "Moderate: each estimatedCost must be a NUMBER in USD between 0 and 100. Meals ~15-50, attractions ~10-30, activities ~25-75, transport ~5-25. Vary by destination cost of living.",
+  luxury:
+    "Luxury: each estimatedCost must be a NUMBER in USD, typically 50-300+ per location. Fine dining ~80-200, premium attractions ~30-80, private experiences ~100-300, transport ~25-100.",
+};
+
 function buildPrompt(body: GenerateRouteRequestBody): string {
   const numDays = getNumberOfDays(body.startDate, body.endDate);
   const budgetDesc = BUDGET_DESCRIPTIONS[body.budget] ?? BUDGET_DESCRIPTIONS.moderate;
+  const costRules = BUDGET_COST_RULES[body.budget] ?? BUDGET_COST_RULES.moderate;
   const travelStyles = body.travelStyle.length
     ? body.travelStyle.join(", ")
     : "general sightseeing";
@@ -36,12 +46,17 @@ function buildPrompt(body: GenerateRouteRequestBody): string {
 **Budget level:** ${body.budget}. ${budgetDesc}
 **Travel style preferences:** ${travelStyles}
 
-**Rules:**
-- Plan realistic timing: include travel time between locations. Use "duration" for how long to spend at each place and space activities so they don't overlap.
-- Respect the budget: suggest places and estimated costs that match the budget level (use local currency or USD for estimatedCost).
+**Cost rules (IMPORTANT):**
+- ${costRules}
+- estimatedCost must be a NUMBER only (e.g. 25 for $25), not a string like "$25". Use 0 for free.
+- Consider destination: ${body.destination} has its own cost level—adjust numbers realistically.
+- Assign each location a "category": exactly one of "food", "attraction", "activity", "transport" for budget breakdown.
+
+**Other rules:**
+- Plan realistic timing: include travel time between locations. Use "duration" for how long to spend at each place.
 - For each day, list locations in chronological order (morning to evening).
-- Use approximate real coordinates (lat/lng) for well-known places in ${body.destination}; you may estimate if needed.
-- "time" should be like "09:00", "14:30". "duration" should be like "2 hours", "45 min".
+- Use approximate real coordinates (lat/lng) for well-known places in ${body.destination}.
+- "time" format: "09:00", "14:30". "duration" format: "2 hours", "45 min".
 
 Respond with ONLY a single valid JSON object, no markdown or explanation. Use this exact structure:
 
@@ -55,7 +70,8 @@ Respond with ONLY a single valid JSON object, no markdown or explanation. Use th
           "time": "HH:MM",
           "duration": "e.g. 2 hours",
           "description": "Brief description",
-          "estimatedCost": "e.g. $20 or Free",
+          "estimatedCost": 25,
+          "category": "food",
           "coordinates": { "lat": number, "lng": number }
         }
       ]
@@ -64,6 +80,34 @@ Respond with ONLY a single valid JSON object, no markdown or explanation. Use th
 }
 
 Generate the itinerary now.`;
+}
+
+const VALID_CATEGORIES = ["food", "attraction", "activity", "transport"] as const;
+
+function normalizeLocation(loc: Record<string, unknown>): ItineraryDay["locations"][0] {
+  const estimatedCost = loc.estimatedCost;
+  const costStr =
+    typeof estimatedCost === "number"
+      ? String(estimatedCost)
+      : typeof estimatedCost === "string"
+        ? estimatedCost
+        : "0";
+  const category =
+    typeof loc.category === "string" && VALID_CATEGORIES.includes(loc.category as (typeof VALID_CATEGORIES)[number])
+      ? (loc.category as (typeof VALID_CATEGORIES)[number])
+      : undefined;
+  return {
+    name: String(loc.name ?? ""),
+    time: String(loc.time ?? ""),
+    duration: String(loc.duration ?? ""),
+    description: String(loc.description ?? ""),
+    estimatedCost: costStr,
+    coordinates: {
+      lat: Number(loc.coordinates && typeof loc.coordinates === "object" && "lat" in loc.coordinates ? (loc.coordinates as { lat: unknown }).lat : 0),
+      lng: Number(loc.coordinates && typeof loc.coordinates === "object" && "lng" in loc.coordinates ? (loc.coordinates as { lng: unknown }).lng : 0),
+    },
+    ...(category ? { category } : {}),
+  };
 }
 
 function parseJsonFromResponse(text: string): GenerateRouteResponse {
@@ -76,26 +120,17 @@ function parseJsonFromResponse(text: string): GenerateRouteResponse {
   if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { days?: unknown }).days)) {
     throw new Error("Invalid response: missing days array");
   }
-  const days = (parsed as { days: unknown }).days as ItineraryDay[];
-  for (const day of days) {
-    if (!day.date || !Array.isArray(day.locations)) {
+  const rawDays = (parsed as { days: unknown[] }).days;
+  const days: ItineraryDay[] = rawDays.map((day: unknown) => {
+    if (!day || typeof day !== "object" || !Array.isArray((day as { locations?: unknown }).locations)) {
       throw new Error("Invalid response: each day must have date and locations array");
     }
-    for (const loc of day.locations) {
-      if (
-        typeof loc.name !== "string" ||
-        typeof loc.time !== "string" ||
-        typeof loc.duration !== "string" ||
-        typeof loc.description !== "string" ||
-        typeof loc.estimatedCost !== "string" ||
-        !loc.coordinates ||
-        typeof loc.coordinates.lat !== "number" ||
-        typeof loc.coordinates.lng !== "number"
-      ) {
-        throw new Error("Invalid response: each location must have name, time, duration, description, estimatedCost, coordinates{lat,lng}");
-      }
-    }
-  }
+    const d = day as { date?: unknown; locations: unknown[] };
+    return {
+      date: String(d.date ?? ""),
+      locations: d.locations.map((loc) => normalizeLocation(loc as Record<string, unknown>)),
+    };
+  });
   return { days };
 }
 
