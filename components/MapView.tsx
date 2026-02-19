@@ -200,18 +200,53 @@ function MapContent({
     return () => google.maps.event.removeListener(listener);
   }, [map, onCloseInfoWindow, ignoreNextMapClickRef]);
 
+  // Build one path per day (only connect locations within the same day). Order preserved per day.
+  // A day with 0 or 1 location gets NO polyline (nothing to connect).
+  const pathsByDay = useMemo(() => {
+    const byDay = new globalThis.Map<number, google.maps.LatLngLiteral[]>();
+    for (const p of points) {
+      const dayIndex = p.dayIndex;
+      let dayPath = byDay.get(dayIndex);
+      if (!dayPath) {
+        dayPath = [];
+        byDay.set(dayIndex, dayPath);
+      }
+      dayPath.push({ ...p.location.coordinates });
+    }
+    const entries = Array.from(byDay.entries());
+    if (process.env.NODE_ENV === "development") {
+      entries.forEach(([dayIndex, dayPath]) => {
+        console.log(`[MapView polyline] dayIndex=${dayIndex} (Day ${dayIndex + 1}) points=${dayPath.length}`, dayPath.length >= 2 ? "→ polyline" : "→ skipped (< 2)");
+      });
+      const day10Entry = entries.find(([dayIndex]) => dayIndex === 9);
+      if (day10Entry) {
+        const [dayIndex, dayPath] = day10Entry;
+        console.log("[MapView polyline] Day 10 detail:", { dayIndex, pointCount: dayPath.length, points: dayPath });
+      }
+    }
+    return entries
+      .filter(([, dayPath]) => dayPath.length >= 2)
+      .map(([dayIndex, path]) => ({ dayIndex, path }));
+  }, [points]);
+
   useEffect(() => {
-    if (!map || path.length < 2) return;
-    const polyline = new google.maps.Polyline({
-      path,
-      geodesic: true,
-      strokeColor: "#059669",
-      strokeOpacity: 0.9,
-      strokeWeight: 4,
+    if (!map) return;
+    const polylines: google.maps.Polyline[] = pathsByDay.map(({ dayIndex, path }) => {
+      const strokeColor = PIN_COLORS[dayIndex % PIN_COLORS.length];
+      const polyline = new google.maps.Polyline({
+        path,
+        geodesic: true,
+        strokeColor,
+        strokeOpacity: 0.9,
+        strokeWeight: 5,
+      });
+      polyline.setMap(map);
+      return polyline;
     });
-    polyline.setMap(map);
-    return () => polyline.setMap(null);
-  }, [map, path]);
+    return () => {
+      polylines.forEach((p) => p.setMap(null));
+    };
+  }, [map, pathsByDay]);
 
   // Zoom to focused day when one is set (newly expanded); otherwise fit all visible. Other markers stay visible.
   const pathToFit = useMemo(() => {
@@ -224,13 +259,52 @@ function MapContent({
 
   useEffect(() => {
     if (!map || pathToFit.length === 0) return;
-    const padding = { top: 48, right: 48, bottom: 48, left: 48 };
-    const runFitBounds = () => {
-      const bounds = new google.maps.LatLngBounds();
-      pathToFit.forEach((p) => bounds.extend(p));
-      map.fitBounds(bounds, padding);
+
+    const isValidCoord = (lat: number, lng: number): boolean => {
+      if (typeof lat !== "number" || typeof lng !== "number") return false;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+      if (lat === 0 && lng === 0) return false;
+      return true;
     };
-    const t = window.setTimeout(runFitBounds, 80);
+
+    const runCamera = () => {
+      const raw = pathToFit.map((p) => ({ lat: p.lat, lng: p.lng }));
+      const valid = pathToFit.filter((p) => {
+        const lat = typeof p.lat === "string" ? Number(p.lat) : p.lat;
+        const lng = typeof p.lng === "string" ? Number(p.lng) : p.lng;
+        return isValidCoord(lat, lng);
+      });
+
+      if (focusedDayIndex === 9) {
+        const dropped = pathToFit.filter((p) => {
+          const lat = typeof p.lat === "string" ? Number(p.lat) : p.lat;
+          const lng = typeof p.lng === "string" ? Number(p.lng) : p.lng;
+          return !isValidCoord(lat, lng);
+        });
+        console.log("[MapView Day 10] raw points", raw);
+        console.log("[MapView Day 10] filtered count", valid.length, "dropped", dropped.length, dropped);
+      }
+
+      if (valid.length === 0) return;
+      if (valid.length === 1) {
+        const p = valid[0];
+        const lat = typeof p.lat === "number" ? p.lat : Number(p.lat);
+        const lng = typeof p.lng === "number" ? p.lng : Number(p.lng);
+        map.panTo({ lat, lng });
+        map.setZoom(14);
+        return;
+      }
+      const bounds = new google.maps.LatLngBounds();
+      valid.forEach((p) => {
+        const lat = typeof p.lat === "number" ? p.lat : Number(p.lat);
+        const lng = typeof p.lng === "number" ? p.lng : Number(p.lng);
+        bounds.extend({ lat, lng });
+      });
+      map.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+    };
+
+    const t = window.setTimeout(runCamera, 80);
     return () => window.clearTimeout(t);
   }, [map, pathToFit, focusedDayIndex]);
 
