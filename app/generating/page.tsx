@@ -44,12 +44,17 @@ function buildRequestBody(searchParams: URLSearchParams) {
   };
 }
 
+const PROGRESS_INTERVAL_MS = 2500;
+const PROGRESS_STEP = 10;
+const PROGRESS_CAP = 95;
+
 function GeneratingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [messageIndex, setMessageIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
 
   const callApi = useCallback(async () => {
     const body = buildRequestBody(searchParams);
@@ -61,6 +66,7 @@ function GeneratingContent() {
 
     setStatus("loading");
     setErrorMessage("");
+    setProgress(0);
 
     try {
       const res = await fetch("/api/generate-route", {
@@ -80,7 +86,8 @@ function GeneratingContent() {
       if (typeof window !== "undefined") {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(result));
       }
-      router.replace("/results");
+      setProgress(100);
+      setTimeout(() => router.replace("/results"), 400);
     } catch {
       setErrorMessage("Network error. Please check your connection and try again.");
       setStatus("error");
@@ -100,36 +107,32 @@ function GeneratingContent() {
     return () => clearInterval(id);
   }, [status]);
 
+  // Progress bar: step toward 90–95% every 2.5s while loading
+  useEffect(() => {
+    if (status !== "loading" || progress >= PROGRESS_CAP) return;
+    const id = setInterval(() => {
+      setProgress((p) => Math.min(p + PROGRESS_STEP, PROGRESS_CAP));
+    }, PROGRESS_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [status, progress]);
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#F8F9FA] bg-gradient-to-b from-white via-[#F8F9FA] to-slate-100/80 px-4">
       <div className="w-full max-w-md text-center">
         {status === "loading" && (
           <>
-            <div className="mx-auto h-14 w-14 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
-            <h1 className="mt-8 text-2xl font-semibold text-slate-900">
+            <h1 className="text-2xl font-semibold text-slate-900">
               AI is planning your perfect trip...
             </h1>
             <p className="mt-3 text-slate-600 transition-opacity duration-300">
               {LOADING_MESSAGES[messageIndex]}
             </p>
-            <div className="mt-10 flex flex-col gap-3">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+            <div className="mt-12 w-full">
+              <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
                 <div
-                  className="h-full w-[30%] rounded-full bg-emerald-500"
-                  style={{ animation: "generating-pulse 1.5s ease-in-out infinite" }}
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-[width] duration-500 ease-out"
+                  style={{ width: `${progress}%` }}
                 />
-              </div>
-              <div className="flex justify-center gap-1">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="inline-block h-2 w-2 rounded-full bg-emerald-500"
-                    style={{
-                      animation: "generating-bounce 0.6s ease-in-out infinite",
-                      animationDelay: `${i * 0.15}s`,
-                    }}
-                  />
-                ))}
               </div>
             </div>
           </>
@@ -171,8 +174,10 @@ function GeneratingContent() {
 function GeneratingFallback() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#F8F9FA] px-4">
-      <div className="h-14 w-14 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-500" />
-      <p className="mt-6 text-slate-600">Loading...</p>
+      <p className="text-slate-600">Loading...</p>
+      <div className="mt-6 h-3 w-full max-w-md overflow-hidden rounded-full bg-slate-200">
+        <div className="h-full w-0 rounded-full bg-emerald-500" />
+      </div>
     </div>
   );
 }
