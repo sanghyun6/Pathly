@@ -109,6 +109,7 @@ function useHoverTooltipOverlay(
       const proj = this.getProjection();
       if (!proj) return;
       const point = proj.fromLatLngToDivPixel(new google.maps.LatLng(pos.lat, pos.lng));
+      if (!point) return;
       div.style.left = `${Math.round(point.x)}px`;
       div.style.top = `${Math.round(point.y - 12)}px`;
       div.style.transform = "translate(-50%, -100%)";
