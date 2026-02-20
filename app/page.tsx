@@ -199,7 +199,7 @@ export default function Home() {
                     <DatePicker
                       id="startDate"
                       selected={startDateObj}
-                      onChange={(d) => updateField("startDate", toDateString(d))}
+                      onChange={(d: Date | null) => updateField("startDate", toDateString(d))}
                       placeholderText="Select start date"
                       dateFormat="MMM d, yyyy"
                       className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 transition-all duration-200 focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
@@ -217,7 +217,7 @@ export default function Home() {
                     <DatePicker
                       id="endDate"
                       selected={endDateObj}
-                      onChange={(d) => updateField("endDate", toDateString(d))}
+                      onChange={(d: Date | null) => updateField("endDate", toDateString(d))}
                       minDate={minEndDate}
                       placeholderText="Select end date"
                       dateFormat="MMM d, yyyy"
