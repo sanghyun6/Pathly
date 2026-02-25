@@ -1,9 +1,39 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, forwardRef } from "react";
 import { useRouter } from "next/navigation";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+
+const CalendarIcon = () => (
+  <svg className="h-5 w-5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+
+const DatePickerButton = forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { value?: string; placeholder?: string }
+>(function DatePickerButton({ value, onClick, placeholder, id, className, ...rest }, ref) {
+  const isEmpty = !value;
+  return (
+    <button
+      ref={ref}
+      type="button"
+      id={id}
+      onClick={onClick}
+      className={className}
+      aria-haspopup="dialog"
+      aria-expanded={false}
+      {...rest}
+    >
+      <span className={`flex w-full items-center justify-between gap-2 ${isEmpty ? "text-slate-400" : "text-slate-900"}`}>
+        <span>{value || placeholder}</span>
+        <CalendarIcon />
+      </span>
+    </button>
+  );
+});
 
 type BudgetOption = "budget" | "moderate" | "luxury";
 type TravelStyleOption = "sightseeing" | "food" | "activities" | "relaxed";
@@ -26,7 +56,6 @@ interface FormErrors {
 
 const BUDGET_CARDS: {
   value: BudgetOption;
-  icon: string;
   title: string;
   description: string;
   selectedClass: string;
@@ -34,7 +63,6 @@ const BUDGET_CARDS: {
 }[] = [
   {
     value: "budget",
-    icon: "💰",
     title: "Save",
     description: "Keep costs low",
     selectedClass: "bg-emerald-50 border-emerald-400 shadow-emerald-200/60",
@@ -42,7 +70,6 @@ const BUDGET_CARDS: {
   },
   {
     value: "moderate",
-    icon: "💳",
     title: "Balance",
     description: "Mix of value and comfort",
     selectedClass: "bg-blue-50 border-blue-400 shadow-blue-200/60",
@@ -50,7 +77,6 @@ const BUDGET_CARDS: {
   },
   {
     value: "luxury",
-    icon: "💎",
     title: "Splurge",
     description: "Premium experience",
     selectedClass: "bg-violet-50 border-violet-400 shadow-violet-200/60",
@@ -58,11 +84,11 @@ const BUDGET_CARDS: {
   },
 ];
 
-const TRAVEL_STYLE_CHIPS: { value: TravelStyleOption; icon: string; label: string }[] = [
-  { value: "sightseeing", icon: "🏛️", label: "Sightseeing" },
-  { value: "food", icon: "🍴", label: "Food" },
-  { value: "activities", icon: "🎯", label: "Activities" },
-  { value: "relaxed", icon: "😌", label: "Relaxed" },
+const TRAVEL_STYLE_CHIPS: { value: TravelStyleOption; label: string }[] = [
+  { value: "sightseeing", label: "Sightseeing" },
+  { value: "food", label: "Food" },
+  { value: "activities", label: "Activities" },
+  { value: "relaxed", label: "Relaxed" },
 ];
 
 function validateForm(data: FormData): FormErrors {
@@ -147,9 +173,6 @@ export default function Home() {
     <div className="min-h-screen bg-[#F8F9FA] bg-gradient-to-b from-white via-[#F8F9FA] to-slate-100/80">
       <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14 lg:py-20">
         <header className="text-center">
-          <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-2xl shadow-sm">
-            ✈️
-          </div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
             Pathly
           </h1>
@@ -172,6 +195,7 @@ export default function Home() {
                 <input
                   id="destination"
                   type="text"
+                  autoComplete="off"
                   placeholder="e.g. Paris, Tokyo"
                   value={formData.destination}
                   onChange={(e) => updateField("destination", e.target.value)}
@@ -202,7 +226,8 @@ export default function Home() {
                       onChange={(d: Date | null) => updateField("startDate", toDateString(d))}
                       placeholderText="Select start date"
                       dateFormat="MMM d, yyyy"
-                      className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 transition-all duration-200 focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                      customInput={<DatePickerButton />}
+                      className="flex w-full items-center rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-left transition-all duration-200 hover:border-slate-300 hover:bg-slate-100/80 focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
                       calendarClassName="pathly-datepicker"
                       wrapperClassName="w-full"
                     />
@@ -221,7 +246,8 @@ export default function Home() {
                       minDate={minEndDate}
                       placeholderText="Select end date"
                       dateFormat="MMM d, yyyy"
-                      className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 transition-all duration-200 focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                      customInput={<DatePickerButton />}
+                      className="flex w-full items-center rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-left transition-all duration-200 hover:border-slate-300 hover:bg-slate-100/80 focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
                       calendarClassName="pathly-datepicker"
                       wrapperClassName="w-full"
                     />
@@ -251,8 +277,7 @@ export default function Home() {
                             : "border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-100/80"
                         }`}
                       >
-                        <span className="text-2xl" aria-hidden>{card.icon}</span>
-                        <span className="mt-2 font-semibold text-slate-900">{card.title}</span>
+                        <span className="font-semibold text-slate-900">{card.title}</span>
                         <span className="mt-0.5 text-xs text-slate-500">{card.description}</span>
                       </button>
                     );
@@ -283,7 +308,6 @@ export default function Home() {
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800"
                         }`}
                       >
-                        <span aria-hidden>{chip.icon}</span>
                         {chip.label}
                       </button>
                     );
