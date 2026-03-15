@@ -6,9 +6,15 @@ import { Timeline, type LocationId } from "@/components/Timeline";
 import { MapView } from "@/components/MapView";
 import { LocationDetail } from "@/components/LocationDetail";
 import { TripBudgetSummary } from "@/components/TripBudgetSummary";
-import type { GenerateRouteResponse, ItineraryLocation } from "@/lib/types";
+import type {
+  GenerateRouteRequestBody,
+  GenerateRouteResponse,
+  ItineraryLocation,
+  ReplanStopRequestBody,
+} from "@/lib/types";
 
 const STORAGE_KEY = "pathly-route-result";
+const REQUEST_STORAGE_KEY = "pathly-route-request";
 
 function persistItinerary(data: GenerateRouteResponse) {
   if (typeof window !== "undefined") {
@@ -18,12 +24,14 @@ function persistItinerary(data: GenerateRouteResponse) {
 
 export default function ResultsPage() {
   const [data, setData] = useState<GenerateRouteResponse | null>(null);
+  const [tripRequest, setTripRequest] = useState<GenerateRouteRequestBody | null>(null);
   const [mounted, setMounted] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState<LocationId | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<ItineraryLocation | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [expandedDayIndices, setExpandedDayIndices] = useState<number[]>(() => [0]);
   const [focusedDayIndex, setFocusedDayIndex] = useState<number | null>(0);
+  const [replanningLocationId, setReplanningLocationId] = useState<LocationId | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -33,6 +41,13 @@ export default function ResultsPage() {
         const parsed = JSON.parse(raw) as GenerateRouteResponse;
         if (parsed?.days && Array.isArray(parsed.days)) {
           setData(parsed);
+        }
+      }
+      const rawRequest = sessionStorage.getItem(REQUEST_STORAGE_KEY);
+      if (rawRequest) {
+        const parsedRequest = JSON.parse(rawRequest) as GenerateRouteRequestBody;
+        if (parsedRequest?.destination && parsedRequest?.budget) {
+          setTripRequest(parsedRequest);
         }
       }
     } catch {
@@ -54,6 +69,64 @@ export default function ResultsPage() {
       return next;
     });
   }, []);
+
+  const handleReplanLocation = useCallback(
+    async (dayIndex: number, locationIndex: number) => {
+      if (!data || !tripRequest) return;
+      const targetLocationId = `${dayIndex}-${locationIndex}`;
+      setReplanningLocationId(targetLocationId);
+
+      try {
+        const payload: ReplanStopRequestBody = {
+          trip: tripRequest,
+          dayIndex,
+          locationIndex,
+          itinerary: data,
+        };
+
+        const res = await fetch("/api/replan-stop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const responseData = await res.json();
+        if (!res.ok) {
+          throw new Error(responseData.error ?? "Failed to replan this stop.");
+        }
+
+        const nextLocation = responseData.location as ItineraryLocation;
+        setData((prev) => {
+          if (!prev) return prev;
+          const nextDays = prev.days.map((day, currentDayIndex) => {
+            if (currentDayIndex !== dayIndex) return day;
+            return {
+              ...day,
+              locations: day.locations.map((location, currentLocationIndex) =>
+                currentLocationIndex === locationIndex ? nextLocation : location
+              ),
+            };
+          });
+          const next = { ...prev, days: nextDays };
+          persistItinerary(next);
+          return next;
+        });
+
+        if (selectedLocationId === targetLocationId) {
+          setSelectedLocation(nextLocation);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to replan this stop.";
+        if (typeof window !== "undefined") {
+          window.alert(message);
+        }
+      } finally {
+        setReplanningLocationId(null);
+      }
+    },
+    [data, tripRequest, selectedLocationId]
+  );
 
   if (!mounted) {
     return (
@@ -104,6 +177,8 @@ export default function ResultsPage() {
             onSelectLocation={handleSelectLocation}
             editable
             onItineraryChange={handleItineraryChange}
+            onReplanLocation={tripRequest ? handleReplanLocation : undefined}
+            replanningLocationId={replanningLocationId}
             expandedDayIndices={expandedDayIndices}
             onExpandedDayIndicesChange={setExpandedDayIndices}
             onDayExpanded={setFocusedDayIndex}

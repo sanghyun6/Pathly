@@ -19,6 +19,7 @@ const LOADING_MESSAGES = [
 ];
 
 const STORAGE_KEY = "pathly-route-result";
+const REQUEST_STORAGE_KEY = "pathly-route-request";
 
 function buildRequestBody(searchParams: URLSearchParams) {
   const destination = searchParams.get("destination");
@@ -69,6 +70,9 @@ function GeneratingContent() {
     setProgress(0);
 
     try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(REQUEST_STORAGE_KEY, JSON.stringify(body));
+      }
       const res = await fetch("/api/generate-route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,7 +99,11 @@ function GeneratingContent() {
   }, [searchParams, router]);
 
   useEffect(() => {
-    callApi();
+    const timeoutId = window.setTimeout(() => {
+      void callApi();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [callApi]);
 
   // Rotate loading message every 2.5s

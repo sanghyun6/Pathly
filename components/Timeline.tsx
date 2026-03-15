@@ -40,6 +40,8 @@ export interface TimelineProps {
   /** When true, show remove buttons and allow drag-and-drop reorder */
   editable?: boolean;
   onItineraryChange?: (days: ItineraryDay[]) => void;
+  onReplanLocation?: (dayIndex: number, locationIndex: number) => void | Promise<void>;
+  replanningLocationId?: LocationId | null;
   /** Controlled: which days are expanded (multiple allowed). Map shows locations from all expanded days. */
   expandedDayIndices?: number[];
   /** Called when user expands/collapses a day. Use with expandedDayIndices for map filtering. */
@@ -74,6 +76,8 @@ export function Timeline({
   onSelectLocation,
   editable = false,
   onItineraryChange,
+  onReplanLocation,
+  replanningLocationId,
   expandedDayIndices: controlledIndices,
   onExpandedDayIndicesChange,
   onDayExpanded,
@@ -114,6 +118,8 @@ export function Timeline({
               onSelectLocation={onSelectLocation}
               editable={editable}
               onItineraryChange={onItineraryChange}
+              onReplanLocation={onReplanLocation}
+              replanningLocationId={replanningLocationId}
             />
           ))}
         </ol>
@@ -132,6 +138,8 @@ interface DaySectionProps {
   onSelectLocation: (locationId: LocationId | null, location: ItineraryLocation | null) => void;
   editable: boolean;
   onItineraryChange?: (days: ItineraryDay[]) => void;
+  onReplanLocation?: (dayIndex: number, locationIndex: number) => void | Promise<void>;
+  replanningLocationId?: LocationId | null;
 }
 
 function DaySection({
@@ -144,6 +152,8 @@ function DaySection({
   onSelectLocation,
   editable,
   onItineraryChange,
+  onReplanLocation,
+  replanningLocationId,
 }: DaySectionProps) {
   const dailyTotalFormatted = formatDayTotal(day.locations);
   const dateLabel = new Date(day.date).toLocaleDateString("en-US", {
@@ -157,35 +167,29 @@ function DaySection({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id || !onItineraryChange) return;
-      const oldIndex = day.locations.findIndex((_, i) => String(i) === active.id);
-      const newIndex = day.locations.findIndex((_, i) => String(i) === over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
-      const next = [...day.locations];
-      const [removed] = next.splice(oldIndex, 1);
-      next.splice(newIndex, 0, removed);
-      const newDays = itinerary.days.map((d, i) =>
-        i === dayIndex ? { ...d, locations: next } : d
-      );
-      onItineraryChange(newDays);
-    },
-    [day, dayIndex, onItineraryChange]
-  );
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onItineraryChange) return;
+    const oldIndex = day.locations.findIndex((_, i) => String(i) === active.id);
+    const newIndex = day.locations.findIndex((_, i) => String(i) === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const next = [...day.locations];
+    const [removed] = next.splice(oldIndex, 1);
+    next.splice(newIndex, 0, removed);
+    const newDays = itinerary.days.map((d, i) =>
+      i === dayIndex ? { ...d, locations: next } : d
+    );
+    onItineraryChange(newDays);
+  }
 
-  const handleRemove = useCallback(
-    (locIndex: number) => {
-      if (!onItineraryChange) return;
-      const next = day.locations.filter((_, i) => i !== locIndex);
-      const newDays = itinerary.days.map((d, i) =>
-        i === dayIndex ? { ...d, locations: next } : d
-      );
-      onItineraryChange(newDays);
-    },
-    [day, dayIndex, itinerary, onItineraryChange]
-  );
+  function handleRemove(locIndex: number) {
+    if (!onItineraryChange) return;
+    const next = day.locations.filter((_, i) => i !== locIndex);
+    const newDays = itinerary.days.map((d, i) =>
+      i === dayIndex ? { ...d, locations: next } : d
+    );
+    onItineraryChange(newDays);
+  }
 
   const sortableIds = day.locations.map((_, i) => String(i));
 
@@ -241,6 +245,12 @@ function DaySection({
                         isSelected={selectedLocationId === locationId(dayIndex, locIndex)}
                         onSelect={() => onSelectLocation(locationId(dayIndex, locIndex), loc)}
                         onRemove={() => handleRemove(locIndex)}
+                        onReplan={
+                          onReplanLocation
+                            ? () => onReplanLocation(dayIndex, locIndex)
+                            : undefined
+                        }
+                        isReplanning={replanningLocationId === locationId(dayIndex, locIndex)}
                         sortableId={String(locIndex)}
                         dayColor={dayColor}
                       />
@@ -275,6 +285,8 @@ interface SortableLocationCardProps {
   isSelected: boolean;
   onSelect: () => void;
   onRemove: () => void;
+  onReplan?: () => void | Promise<void>;
+  isReplanning?: boolean;
   sortableId: string;
   dayColor: string;
 }
@@ -285,6 +297,8 @@ function SortableLocationCard({
   isSelected,
   onSelect,
   onRemove,
+  onReplan,
+  isReplanning = false,
   sortableId,
   dayColor,
 }: SortableLocationCardProps) {
@@ -319,16 +333,19 @@ function SortableLocationCard({
           </button>
         )}
         <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={onSelect}
-            data-location-id={locationId}
-            className={`w-full rounded-xl border px-3 py-3 text-left transition-all duration-200 hover:shadow-md sm:px-4 sm:py-3.5 ${
+          <div
+            className={`rounded-xl border px-3 py-3 transition-all duration-200 hover:shadow-md sm:px-4 sm:py-3.5 ${
               isSelected
                 ? "border-emerald-400 bg-emerald-50/80 shadow-md"
                 : "border-slate-200 bg-slate-50/60 hover:border-slate-300 hover:bg-white hover:shadow"
             }`}
           >
+            <button
+              type="button"
+              onClick={onSelect}
+              data-location-id={locationId}
+              className="w-full text-left"
+            >
             <div className="flex flex-wrap items-baseline gap-2">
               <span className="text-sm font-semibold" style={{ color: dayColor }}>
                 {location.time}
@@ -347,7 +364,26 @@ function SortableLocationCard({
             <p className="mt-2 text-xs font-medium text-slate-500">
               {formatCostDisplay(location.estimatedCost)}
             </p>
-          </button>
+            </button>
+            {onReplan && (
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void onReplan();
+                  }}
+                  disabled={isReplanning}
+                  className="inline-flex min-h-[36px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isReplanning && (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                  )}
+                  <span>{isReplanning ? "Changing..." : "Change"}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <button
           type="button"

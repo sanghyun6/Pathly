@@ -4,7 +4,6 @@ import type {
   GenerateRouteRequestBody,
   GenerateRouteResponse,
   ItineraryDay,
-  ItineraryLocation,
 } from "@/lib/types";
 
 const BUDGET_DESCRIPTIONS: Record<string, string> = {
@@ -22,11 +21,11 @@ function getNumberOfDays(startDate: string, endDate: string): number {
 
 const BUDGET_COST_RULES: Record<string, string> = {
   budget:
-    "Budget: each location estimatedCost must be a NUMBER in USD between 0 and 30. Use 0 for free entries. Meals/street food ~5-15, attractions ~0-15, activities ~10-25, transport ~2-10. Adjust for destination (e.g. Tokyo slightly higher, Bangkok lower).",
+    "Budget: each location estimatedCost must be a NUMBER in USD between 0 and 45. Use 0 for free entries. Coffee/cafe stops ~5-12, casual breakfast ~8-18, lunch/street food ~10-20, dinner ~15-30, attractions ~0-20, activities ~15-35, transport ~3-15. Adjust for destination (e.g. Tokyo, Paris, New York higher; Bangkok, Hanoi lower), taxes, and typical tourist-area pricing.",
   moderate:
-    "Moderate: each estimatedCost must be a NUMBER in USD between 0 and 100. Meals ~15-50, attractions ~10-30, activities ~25-75, transport ~5-25. Vary by destination cost of living.",
+    "Moderate: each estimatedCost must be a NUMBER in USD between 0 and 140. Coffee/cafe stops ~6-15, brunch ~18-35, lunch ~20-40, dinner ~30-70, attractions ~15-40, activities ~35-90, transport ~8-30. Vary by destination cost of living and avoid unrealistically cheap estimates.",
   luxury:
-    "Luxury: each estimatedCost must be a NUMBER in USD, typically 50-300+ per location. Fine dining ~80-200, premium attractions ~30-80, private experiences ~100-300, transport ~25-100.",
+    "Luxury: each estimatedCost must be a NUMBER in USD, typically 60-400+ per location. Coffee/cafe stops ~10-25, upscale lunch ~40-90, fine dining ~90-250, premium attractions ~40-120, private experiences ~120-350, transport ~25-120. Use realistic premium-city pricing when appropriate.",
 };
 
 function buildPrompt(body: GenerateRouteRequestBody): string {
@@ -50,12 +49,16 @@ function buildPrompt(body: GenerateRouteRequestBody): string {
 - ${costRules}
 - estimatedCost must be a NUMBER only (e.g. 25 for $25), not a string like "$25". Use 0 for free.
 - Consider destination: ${body.destination} has its own cost level—adjust numbers realistically.
+- Do not underprice food, coffee, or paid attractions. Prefer realistic current traveler prices over optimistic local minimums.
 - Assign each location a "category": exactly one of "food", "attraction", "activity", "transport" for budget breakdown.
 
 **Other rules:**
 - Plan realistic timing: include travel time between locations. Use "duration" for how long to spend at each place.
 - For each day, list locations in chronological order (morning to evening).
 - Use approximate real coordinates (lat/lng) for well-known places in ${body.destination}.
+- For any stop involving food, coffee, bakery, dessert, drinks, brunch, lunch, or dinner, ALWAYS use a specific real venue name in ${body.destination}, not a generic label.
+- Do not use vague entries like "Lunch", "Coffee break", "Dinner", "Cafe stop", or "Local restaurant". Use actual place names such as a named cafe, bakery, bar, or restaurant.
+- Generic entries are allowed only for non-venue items such as walking, transit, hotel rest, scenic strolls, or free exploration.
 - "time" format: "09:00", "14:30". "duration" format: "2 hours", "45 min".
 
 Respond with ONLY a single valid JSON object, no markdown or explanation. Use this exact structure:

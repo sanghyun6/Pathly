@@ -10,6 +10,17 @@ function formatCostDisplay(estimatedCost: string): string {
   return estimatedCost || "—";
 }
 
+function getGoogleMapsHref(location: ItineraryLocation): string {
+  const { lat, lng } = location.coordinates;
+  const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
+
+  if (hasCoordinates) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${location.name} ${lat},${lng}`)}`;
+  }
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.name)}`;
+}
+
 export interface LocationDetailProps {
   location: ItineraryLocation | null;
   onClose: () => void;
@@ -83,7 +94,7 @@ export function LocationDetail({ location, onClose, open }: LocationDetailProps)
                     Map
                   </h3>
                   <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.name)}`}
+                    href={getGoogleMapsHref(location)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-1 inline-flex items-center gap-1 text-sm text-emerald-600 hover:underline"

@@ -7,6 +7,14 @@ export interface GenerateRouteRequestBody {
   travelStyle: ("sightseeing" | "food" | "activities" | "relaxed")[];
 }
 
+/** Request body for POST /api/replan-stop */
+export interface ReplanStopRequestBody {
+  trip: GenerateRouteRequestBody;
+  dayIndex: number;
+  locationIndex: number;
+  itinerary: GenerateRouteResponse;
+}
+
 /** Coordinates for a location */
 export interface Coordinates {
   lat: number;
